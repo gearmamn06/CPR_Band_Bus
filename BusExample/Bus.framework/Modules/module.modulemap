@@ -1,0 +1,11 @@
+framework module Bus {
+  umbrella header "Bus.h"
+
+  export *
+  module * { export * }
+}
+
+module Bus.Swift {
+    header "Bus-Swift.h"
+    requires objc
+}
