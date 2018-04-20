@@ -11,17 +11,15 @@ import RxSwift
 import RxCocoa
 import Toast_Swift
 
-
-
 import Bus
 
 class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate, UICollectionViewDataSource {
+
     
-    
+    // Basic UI components
     @IBOutlet weak var findBtn: UIButton!
     @IBOutlet weak var scanStatusLabel: UILabel!
     @IBOutlet weak var selectBtn: UIButton!
-    
     @IBOutlet weak var connectBtn: UIButton!
     @IBOutlet weak var disconnectBtn: UIButton!
     @IBOutlet weak var bandStatusLabel: UILabel!
@@ -29,47 +27,54 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
     @IBOutlet weak var batteryLabel: UILabel!
     @IBOutlet weak var distanceLabel: UILabel!
     @IBOutlet weak var macLabel: UILabel!
-    
     @IBOutlet weak var readyBtn: UIButton!
     @IBOutlet weak var resetBtn: UIButton!
     @IBOutlet weak var powerOffBtn: UIButton!
     @IBOutlet weak var practiceBtn: UIButton!
     @IBOutlet weak var evaluationBtn: UIButton!
-    
-    
     @IBOutlet weak var angleValueLabel: UILabel!
     @IBOutlet weak var angleReceivedTimeLabel: UILabel!
     @IBOutlet weak var depthLabel: UILabel!
     @IBOutlet weak var depthTimeLabel: UILabel!
-    
     @IBOutlet weak var changeRangeBtn: UIButton!
     @IBOutlet weak var changeNameBtn: UIButton!
     @IBOutlet weak var changeBattIntervalBtn: UIButton!
     @IBOutlet weak var changeDistanceIntervalBtn: UIButton!
     
-    
+    /// To show found bluetooth device list during the BLE scan
     @IBOutlet weak var collectionView: UICollectionView!
     
     
     let delegate = UIApplication.shared.delegate as! AppDelegate
-    var notManager: NotManager!
     
-    var mainStatus = Variable<Status>(Status.disconnected)
+    /// Instance for receiving data from the Bus
+    var notManager: NotManager!
+
+    
+    /// Found devices during BLE scan
     var foundDevs = Variable<[BT_Device]>([BT_Device]())
+    
+    /// Selected device MAC address among the foundDevs
     var selectedDevMac: String? {
         didSet {
             self.selectBtn?.isEnabled = !(self.selectedDevMac?.isEmpty ?? true)
             self.selectBtn?.alpha = self.selectBtn?.isEnabled ?? false ? 1.0 : 0.5
         }
     }
+    
+    /// Target band
     var cprBand: CPR_Band?
+    /// The status value of the target CPR_Band
+    var mainStatus = Variable<Status>(Status.disconnected)
     
     let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
+        
         self.bindButtons()
+        
+        // Available and diavailable buttons will be changed depending on mainStatus value
         self.mainStatus.asObservable().subscribe( { ev in
             guard let s = ev.element else { return }
             
@@ -77,21 +82,28 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
             var disableBtns = btnsAll
             switch s {
             case .disconnected:
+                // Only findBtn, connectBtn and selectBtn are allowed in this case
                 disableBtns = self.removeBtn(btns: disableBtns, bs: self.findBtn, self.connectBtn, self.selectBtn)
             case .connected:
+                // Only findBtn and disconnectBtn are allowed in this case
                 disableBtns = self.removeBtn(btns: disableBtns, bs: self.findBtn, self.disconnectBtn)
             case .ready:
+                // Other buttons are available except findBtn, selectBtn, connectBtn and readyBtn
                 disableBtns = [ self.findBtn, self.selectBtn, self.connectBtn, self.readyBtn ]
             case .practicing:
+                // Only readyBtn and evaluationBtn are allowed in this case
                 disableBtns = self.removeBtn(btns: disableBtns, bs: self.readyBtn, self.evaluationBtn)
             case .evaluating:
+                // Only readyBtn and practiceBtn are allowed in this case
                 disableBtns = self.removeBtn(btns: disableBtns, bs: self.readyBtn, self.practiceBtn)
             default: break
             }
+            
             for b in disableBtns {
                 b.isEnabled = false
                 b.alpha = 0.5
             }
+            
             let ableBtns = btnsAll.filter{ !disableBtns.contains($0) }
             for b in ableBtns {
                 b.isEnabled = true
@@ -101,6 +113,7 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
             self.bandStatusChnaged()
         }).disposed(by: self.disposeBag)
         
+        // Reload collectionview if there are any changes in foundDevs.value
         self.foundDevs.asObservable().subscribe( { ev in
             self.collectionView.reloadData()
         })
@@ -113,10 +126,16 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
     }
     
     override func viewDidAppear(_ animated: Bool) {
+        
         if self.notManager == nil {
             self.notManager = NotManager(gattUICallback: self)
         }
+        
+        
+        // register all notifications
         self.notManager.registerAll()
+        
+        // register notifications which user wants to receive,
         //self.notManager.register(keys: .unavail, .bluetoothPower, .scanning, .scanFound, ...)
     }
     
@@ -126,13 +145,20 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
     }
 
     
-    //// scan and connection examples
+    
+    //// scan and prepare band examples ////
+    
     
     func findBtnClicked() {
         self.findBtn.rx.tap.bind {
+            
+            // bus.isScanning indicating current BLE scanning status
             let to = !self.delegate.bus.isScanning
+            
+            // toggle BLE scanning
             self.delegate.bus.scanControl(start: to)
             if to {
+                // if BLE scanning starts, initialize foundDevs and selectedDevMac
                 self.foundDevs.value.removeAll()
                 self.selectedDevMac = nil
             }
@@ -143,10 +169,12 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
         self.view.makeToast("Can't use bluetooth service, reason: \(reason)")
     }
     
+    
     func GattCallback_Scannnig(started: Bool) {
         self.findBtn.setTitle(started ? "Stop Scanning" : "Find CPR-Band", for: .normal)
         self.scanStatusLabel.text = "BLE Scan status: \(started)"
     }
+    
     
     func GattCallback_ScanDevice(found: BT_Device) {
         if !self.foundDevs.value.contains(found) {
@@ -154,6 +182,7 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
         }
     }
     
+    // collection view shows found bluetooth devices during the BLE scanning
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return self.foundDevs.value.count
     }
@@ -178,10 +207,16 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
         self.collectionView.reloadItems(at: indexes)
     }
     
+    
     func selectBtnClicked() {
         self.selectBtn.rx.tap.bind {
             if let m = self.selectedDevMac {
+                // Select the band by MAC address and get the corresponding CPR_Band value
                 self.cprBand = self.delegate.bus.selectBand(by: m)
+                
+                // If user want to select multiple bands, use this function.
+                // let bands = self.delegate.bus.selectBand(by: [MAC_ADDRESS_STRING_ARRAY])
+                
                 self.selectedDevMac = nil
                 self.foundDevs.value.removeAll()
                 self.bandStatusChnaged()
@@ -189,29 +224,35 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
         }
     }
     
+    
     func connectionControlBtnsClicked() {
         
         self.connectBtn.rx.tap.bind {
-            if self.cprBand != nil {
-                self.delegate.bus.connectBy(mac: self.cprBand!.mac)
-            }
+            guard let m = self.cprBand?.mac else { return }
+            
+            // Connect using MAC address
+            self.delegate.bus.connectBy(mac: m)
+            
+            // If user want to connect multiple bands, use this function.
+            // self.delegate.bus.connectBy(macs: [MAC_ADDRESS_STRING_ARRAY])
         }
         
         self.disconnectBtn.rx.tap.bind{
+            
+            // Disconnect the band using MAC address(nil: disconnect all)
             self.delegate.bus.disconnectBy(mac: self.cprBand?.mac)
+            
+            // If user want to disconnect multiple bands, use this function.
+            // self.delegate.bus.disconnectBy(macs: [MAC_ADDRESS_STRNIG_ARRAY])
         }
     }
-
     
+    // Band connection status value will be returned
     func GattCallback_BandConnectionChanged(mac: String, to: Status) {
         self.mainStatus.value = to
         
     }
     
-    func GattCallback_BandModeChanged(mac: String, to: Status) {
-        self.mainStatus.value = to
-    }
-
     func bandStatusChnaged() {
         self.BandNmLabel.text = "Band name: " + (self.cprBand?.name == nil ? "" : self.cprBand!.name)
         self.macLabel.text = "MAC address(identifier uuidString): \n" + (self.cprBand?.mac == nil ? "" : self.cprBand!.mac)
@@ -227,34 +268,42 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
     }
     
     
-    ///// band mode control and data receiving
     
+    
+    ///// Band mode control and Data receiving
+    
+    
+    // send CMD to the band for changing it's mode
     func bandModeControlBtnsClicked() {
         
         self.readyBtn.rx.tap.bind {
-            if let m = self.cprBand?.mac {
-                self.delegate.bus.sendCMD(mac: m, cmd: .ready)
-            }
+            guard let m = self.cprBand?.mac else {return}
+            self.delegate.bus.sendCMD(mac: m, cmd: .ready)
+            // self.delegate.bus.sendCMD(macs: [MAC_ADDRESS_STRING_ARRAY], cmd: cmd)
         }
         
         self.practiceBtn.rx.tap.bind {
-            if let m = self.cprBand?.mac {
-                self.delegate.bus.sendCMD(mac: m, cmd: .practice)
-            }
+            guard let m = self.cprBand?.mac else {return}
+            self.delegate.bus.sendCMD(mac: m, cmd: .practice)
         }
         
         self.evaluationBtn.rx.tap.bind {
-            if let m = self.cprBand?.mac {
-                self.delegate.bus.sendCMD(mac: m, cmd: .evaluationStart)
-            }
+            guard let m = self.cprBand?.mac else {return}
+            self.delegate.bus.sendCMD(mac: m, cmd: .evaluationStart)
         }
     }
     
+    // It means the CMD data successfully transmitted to the band
     func GattCallback_CMDSent(mac: String, cmd: CMD) {
         print("CMD: \(cmd) sent to device MAC: \(mac)")
         if cmd == .newRange {
             self.view.makeToast("Successfully sent new correct compression depth range values!")
         }
+    }
+    
+    // It means Band mode is changed
+    func GattCallback_BandModeChanged(mac: String, to: Status) {
+        self.mainStatus.value = to
     }
 
     
@@ -269,7 +318,9 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
     }
     
     
-    /// basic band setting and control
+    
+    /// Basic band setting and control
+    
     
     func bandControlBtnsClicked() {
         
@@ -296,7 +347,9 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
     }
     
     
-    /// change AppSetting
+    
+    /// Change AppSetting
+    
     
     func appSettingcontroltnsClicked() {
         
@@ -320,7 +373,10 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
     
     
     
-    private func bindButtons() {
+    
+    // functions
+    
+    func bindButtons() {
         self.findBtnClicked()
         self.selectBtnClicked()
         self.connectionControlBtnsClicked()

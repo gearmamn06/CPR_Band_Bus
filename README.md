@@ -18,7 +18,7 @@ iOS 9.0+
 
 ## Installation
 
-1. Add this framework to the project you want to use. (Check "copy items if needed")
+1. Add Bus.framework file to the project you want to use. (Check "copy items if needed")
 
 2. Open the project editor Select your project among your "targets" and add this framework to "Embedded Binaries" if it is not already there.
 
@@ -62,7 +62,7 @@ var bus: Bus!
 
 func application(_ application: UIApplication, didFinishLaunchingWithOptionas launchOptions: [UIApplicationLaunchOptionKey: Any]?) -> Bool {
 
-    // If you want your Bluetooth connection to the band to stay in your app's background for a long time, enter true as the keepAlive value.
+    // If you want your Bluetooth connection to the band to stay in your app's background, enter true as the keepAlive value.
     self.bus = Bus(keepAlive: true)
     
     return true
