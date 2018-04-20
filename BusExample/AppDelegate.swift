@@ -20,6 +20,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // If you want your Bluetooth connection to the band to stay in your app's background, enter true as the keepAlive value.
         self.bus = Bus(keepAlive: true)
         
+        
         return true
     }
 

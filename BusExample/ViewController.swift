@@ -70,6 +70,7 @@ class ViewController: UIViewController, GattUICallback, UICollectionViewDelegate
     let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
+        
         super.viewDidLoad()
         
         self.bindButtons()
