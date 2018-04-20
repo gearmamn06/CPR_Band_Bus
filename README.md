@@ -230,18 +230,20 @@ func GattCallback_BandConnectionChanged(mac: String, to: Status) {
 To change the mode(or name) of the band:
 ```
 {
-    // CMD includes call, ready, practice, evaluationStart, newRange, newName, reset, and powerOff.
+    /**
+    CMD includes call, ready, practice, evaluationStart, newRange, newName, reset, and powerOff.
+       - * call: Call the band -> All the LEDs on the band are on and the buzzer starts to ring.
+       - ready: Change the band's mode to ready (default mode)
+       - practice: Change the mode of the band to practicing -> The LED of the band turns on gradually according to the movement of the band, the band transmits data to the app
+       - evaluationStart: Change the mode of the band to evaluating -> all of the band's LEDs are off, but the band sends data to the app
+       - * newRange: A command to inform the band that a new correct compression depth range will be transmitted
+       - * newName: A command to inform the band that a new name for the band will be sent
+       - * reset: A command that initializes the name of the band and the correct compression range value
+       - * powerOff: Turn off the band
+    
+    '*' Marked commands are only sent if the band is in ready mode
+    */
     self.delegate.bus.sendCMD(mac: "MAC_ADDRESS", cmd: .practice)
-        // *call: Call the band -> All the LEDs on the band are on and the buzzer starts to ring.
-        // ready: Change the band's mode to ready (default mode)
-        // practice: Change the mode of the band to practicing -> The LED of the band turns on gradually according to the movement of the band, the band transmits data to the app
-        // evaluationStart: Change the mode of the band to evaluating -> all of the band's LEDs are off, but the band sends data to the app
-        // *newRange: A command to inform the band that a new correct compression depth range will be transmitted
-        // *newName: A command to inform the band that a new name for the band will be sent
-        // *reset: A command that initializes the name of the band and the correct compression range value
-        // *powerOff: Turn off the band
-        
-        // * Marked commands are only sent if the band is in ready mode
         
         
     // change CPR-Band name
